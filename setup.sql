@@ -61,3 +61,17 @@ exception when duplicate_object then null; end $$;
 
 -- Optional: set nicer display names (replace the emails/names).
 -- update public.profiles set display_name = 'Cyrus' where id = (select id from auth.users where email = 'YOUR_EMAIL');
+
+-- ===== IMAGES (run this part if you already ran the file above) =====
+alter table public.tasks add column if not exists images text[] not null default '{}';
+
+insert into storage.buckets (id, name, public)
+values ('task-images', 'task-images', false)
+on conflict (id) do nothing;
+
+drop policy if exists "task images read" on storage.objects;
+create policy "task images read" on storage.objects for select to authenticated using (bucket_id = 'task-images');
+drop policy if exists "task images insert" on storage.objects;
+create policy "task images insert" on storage.objects for insert to authenticated with check (bucket_id = 'task-images');
+drop policy if exists "task images delete" on storage.objects;
+create policy "task images delete" on storage.objects for delete to authenticated using (bucket_id = 'task-images');

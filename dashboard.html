@@ -60,6 +60,11 @@
       <h3 id="modalTitle">New task</h3>
       <div class="field"><label>Title</label><input id="fTitle" required maxlength="80" /></div>
       <div class="field"><label>Details</label><textarea id="fDesc" rows="3" maxlength="400"></textarea></div>
+      <div class="field">
+        <label>Images (click, or paste a screenshot)</label>
+        <input id="fFiles" type="file" accept="image/*" multiple />
+        <div class="thumbs" id="thumbs"></div>
+      </div>
       <div class="row2">
         <div class="field"><label>Assigned to</label><select id="fAssignee"></select></div>
         <div class="field"><label>Priority</label>
@@ -85,6 +90,7 @@
     </form>
   </div>
 
+  <div class="lightbox" id="lightbox"><img id="lbImg" alt="" /></div>
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -6,7 +6,7 @@
     { key: "review", label: "Review" },
     { key: "done", label: "Done" },
   ];
-  var state = { me: null, profiles: [], tasks: [], editing: null, q: "", who: "" };
+  var state = { me: null, profiles: [], tasks: [], editing: null, q: "", who: "", urls: {}, keep: [], pending: [] };
   var $ = function (id) { return document.getElementById(id); };
 
   function toast(msg) {
@@ -34,6 +34,12 @@
     }
     state.profiles = p.data || [];
     state.tasks = t.data || [];
+    var paths = [];
+    state.tasks.forEach(function (x) { (x.images || []).forEach(function (a) { if (!state.urls[a]) paths.push(a); }); });
+    if (paths.length) {
+      var su = await sb.storage.from("task-images").createSignedUrls(paths, 3600);
+      (su.data || []).forEach(function (r) { if (r.signedUrl) state.urls[r.path] = r.signedUrl; });
+    }
   }
   await load();
 
@@ -126,7 +132,10 @@
       var cards = items.map(function (t) {
         var prio = t.priority === "high" ? "prio-high" : t.priority === "low" ? "prio-low" : "prio-med";
         var who = t.assignee ? nameOf(t.assignee) : "Unassigned";
-        return '<div class="card' + (t.status === "done" ? " done" : "") + '" draggable="true" data-id="' + t.id + '">' +
+        var imgs = (t.images || []).filter(function (a) { return state.urls[a]; });
+        var imgHtml = imgs.length ? '<div class="card-img" data-zoom="' + esc(state.urls[imgs[0]]) + '"><img src="' + esc(state.urls[imgs[0]]) + '" alt="" loading="lazy" draggable="false" />' +
+          (imgs.length > 1 ? '<span class="more">+' + (imgs.length - 1) + "</span>" : "") + "</div>" : "";
+        return '<div class="card' + (t.status === "done" ? " done" : "") + '" draggable="true" data-id="' + t.id + '">' + imgHtml +
           '<div class="top"><h5>' + esc(t.title) + '</h5><button class="menu" data-edit="' + t.id + '" title="Edit">⋮</button></div>' +
           "<p>" + esc(t.description || "") + "</p>" +
           '<div class="meta"><span class="tagpill">📅 ' + fmtDate(t.due_date) + '</span>' +
@@ -156,6 +165,9 @@
         await setStatus(id, col.dataset.col);
       });
     });
+    document.querySelectorAll("[data-zoom]").forEach(function (el) {
+      el.addEventListener("click", function () { $("lbImg").src = el.dataset.zoom; $("lightbox").classList.add("open"); });
+    });
     document.querySelectorAll("[data-edit]").forEach(function (b) {
       b.addEventListener("click", function (e) { e.stopPropagation(); openModal(b.dataset.edit); });
     });
@@ -183,9 +195,45 @@
     $("fStatus").value = t ? t.status : "todo";
     $("fDue").value = t ? t.due_date || "" : "";
     $("delBtn").style.display = t ? "block" : "none";
+    state.keep = t ? (t.images || []).slice() : [];
+    state.pending = [];
+    $("fFiles").value = "";
+    renderThumbs();
     $("modalBg").classList.add("open");
     $("fTitle").focus();
   }
+  function renderThumbs() {
+    var h = state.keep.map(function (a, i) {
+      return '<div class="thumb"><img src="' + esc(state.urls[a] || "") + '" alt="" /><button type="button" data-rk="' + i + '">×</button></div>';
+    }).join("") + state.pending.map(function (f, i) {
+      return '<div class="thumb"><img src="' + URL.createObjectURL(f) + '" alt="" /><button type="button" data-rp="' + i + '">×</button></div>';
+    }).join("");
+    $("thumbs").innerHTML = h;
+    $("thumbs").querySelectorAll("[data-rk]").forEach(function (b) {
+      b.addEventListener("click", function () { state.keep.splice(+b.dataset.rk, 1); renderThumbs(); });
+    });
+    $("thumbs").querySelectorAll("[data-rp]").forEach(function (b) {
+      b.addEventListener("click", function () { state.pending.splice(+b.dataset.rp, 1); renderThumbs(); });
+    });
+  }
+  function addFiles(list) {
+    Array.prototype.forEach.call(list, function (f) {
+      if (!/^image\//.test(f.type)) return;
+      if (f.size > 8 * 1024 * 1024) { toast(f.name + " is over 8 MB"); return; }
+      state.pending.push(f);
+    });
+    renderThumbs();
+  }
+  $("fFiles").addEventListener("change", function (e) { addFiles(e.target.files); e.target.value = ""; });
+  document.addEventListener("paste", function (e) {
+    if (!$("modalBg").classList.contains("open") || !e.clipboardData) return;
+    addFiles(e.clipboardData.files);
+  });
+  $("lightbox").addEventListener("click", function () { $("lightbox").classList.remove("open"); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { $("lightbox").classList.remove("open"); closeModal(); }
+  });
+
   function closeModal() { $("modalBg").classList.remove("open"); }
   $("addBtn").addEventListener("click", function () { openModal(null); });
   $("cancelBtn").addEventListener("click", closeModal);
@@ -202,6 +250,21 @@
       status: status,
       due_date: $("fDue").value || null,
     };
+    var saveBtn = e.submitter; if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
+    var uploaded = [];
+    for (var i = 0; i < state.pending.length; i++) {
+      var f = state.pending[i];
+      var safe = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      var path = state.me.id + "/" + Date.now() + "-" + i + "-" + safe;
+      var up = await sb.storage.from("task-images").upload(path, f, { contentType: f.type });
+      if (up.error) {
+        toast("Upload failed: " + up.error.message);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Save"; }
+        return;
+      }
+      uploaded.push(path);
+    }
+    row.images = state.keep.concat(uploaded);
     var r;
     if (state.editing) {
       if (state.editing.status !== status) row.completed_at = status === "done" ? new Date().toISOString() : null;
@@ -211,7 +274,12 @@
       if (status === "done") row.completed_at = new Date().toISOString();
       r = await sb.from("tasks").insert(row);
     }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Save"; }
     if (r.error) { toast(r.error.message); return; }
+    if (state.editing) {
+      var removed = (state.editing.images || []).filter(function (a) { return state.keep.indexOf(a) === -1; });
+      if (removed.length) await sb.storage.from("task-images").remove(removed);
+    }
     closeModal(); await load(); renderAll(); toast("Saved");
   });
 
@@ -219,6 +287,7 @@
     if (!state.editing || !confirm("Delete this task?")) return;
     var r = await sb.from("tasks").delete().eq("id", state.editing.id);
     if (r.error) { toast(r.error.message); return; }
+    if ((state.editing.images || []).length) await sb.storage.from("task-images").remove(state.editing.images);
     closeModal(); await load(); renderAll(); toast("Deleted");
   });
 
