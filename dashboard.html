@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard · Chicken Farm HQ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app" id="app" style="visibility:hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">🐔</span> Chicken Farm HQ</div>
+      <a class="side-link active" href="dashboard.html">▦ Dashboard</a>
+
+      <div class="side-section">Members</div>
+      <div class="member-list" id="members"></div>
+
+      <div class="me">
+        <div class="avatar sm" id="meAvatar"></div>
+        <span id="meName"></span>
+        <button id="logout" title="Log out">⎋</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="search">🔍 <input id="search" placeholder="Search tasks..." /></div>
+        <select class="chip" id="filterAssignee"><option value="">Everyone</option></select>
+        <button class="btn-add" id="addBtn">＋ Add task</button>
+      </div>
+
+      <section class="stats-panel">
+        <div>
+          <h4>Tasks finished this week</h4>
+          <div class="bars" id="bars"></div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 200 110" id="gaugeSvg"></svg>
+          <div class="pct" id="pct">0%</div>
+          <div class="cap">Tasks completed</div>
+        </div>
+        <div class="kpi">
+          <div class="num" id="kInProg">0</div>
+          <div class="cap">Tasks<br>in progress <span class="arrow">→</span></div>
+        </div>
+        <div class="kpi">
+          <div class="num" id="kVisits">0</div>
+          <div class="cap">Game visits<br>(live after launch) <span class="arrow">→</span></div>
+        </div>
+      </section>
+
+      <section class="board" id="board"></section>
+    </main>
+  </div>
+
+  <!-- Task modal -->
+  <div class="modal-bg" id="modalBg">
+    <form class="modal" id="taskForm">
+      <h3 id="modalTitle">New task</h3>
+      <div class="field"><label>Title</label><input id="fTitle" required maxlength="80" /></div>
+      <div class="field"><label>Details</label><textarea id="fDesc" rows="3" maxlength="400"></textarea></div>
+      <div class="row2">
+        <div class="field"><label>Assigned to</label><select id="fAssignee"></select></div>
+        <div class="field"><label>Priority</label>
+          <select id="fPrio"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Status</label>
+          <select id="fStatus">
+            <option value="todo">To Do</option>
+            <option value="in_progress">In Progress</option>
+            <option value="review">Review</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <div class="field"><label>Due date</label><input id="fDue" type="date" /></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="button" class="btn-ghost btn-danger" id="delBtn" style="display:none">Delete</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

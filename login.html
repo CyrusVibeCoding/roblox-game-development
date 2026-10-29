@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login · Chicken Farm HQ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="login-card" id="form">
+      <div class="brand"><span class="logo">🐔</span> Chicken Farm HQ</div>
+      <h2>Team login</h2>
+      <p class="sub">Only the two game owners can get in.</p>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" required autocomplete="email" /></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password" /></div>
+      <button class="btn-primary" id="go" type="submit">Log in</button>
+      <div class="error" id="err"></div>
+      <a class="back" href="index.html">← Back to home</a>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    (async function () {
+      var sb = window.getSupabase();
+      var s = await sb.auth.getSession();
+      if (s.data.session) { location.replace("dashboard.html"); return; }
+
+      document.getElementById("form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var btn = document.getElementById("go"), err = document.getElementById("err");
+        err.textContent = ""; btn.disabled = true; btn.textContent = "Logging in...";
+        var r = await sb.auth.signInWithPassword({
+          email: document.getElementById("email").value.trim(),
+          password: document.getElementById("password").value
+        });
+        if (r.error) {
+          err.textContent = r.error.message;
+          btn.disabled = false; btn.textContent = "Log in";
+        } else {
+          location.replace("dashboard.html");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
