@@ -165,8 +165,11 @@
         await setStatus(id, col.dataset.col);
       });
     });
+    document.querySelectorAll(".card").forEach(function (el) {
+      el.addEventListener("click", function () { openDetail(el.dataset.id); });
+    });
     document.querySelectorAll("[data-zoom]").forEach(function (el) {
-      el.addEventListener("click", function () { $("lbImg").src = el.dataset.zoom; $("lightbox").classList.add("open"); });
+      el.addEventListener("click", function (e) { e.stopPropagation(); $("lbImg").src = el.dataset.zoom; $("lightbox").classList.add("open"); });
     });
     document.querySelectorAll("[data-edit]").forEach(function (b) {
       b.addEventListener("click", function (e) { e.stopPropagation(); openModal(b.dataset.edit); });
@@ -202,6 +205,39 @@
     $("modalBg").classList.add("open");
     $("fTitle").focus();
   }
+  function openDetail(id) {
+    var t = state.tasks.find(function (x) { return String(x.id) === String(id); });
+    if (!t) return;
+    var cols = { todo: "To Do", in_progress: "In Progress", review: "Review", done: "Done" };
+    var prio = t.priority === "high" ? "prio-high" : t.priority === "low" ? "prio-low" : "prio-med";
+    var who = t.assignee ? nameOf(t.assignee) : "Unassigned";
+    var by = t.created_by ? nameOf(t.created_by) : "Unknown";
+    var imgs = (t.images || []).filter(function (a) { return state.urls[a]; });
+    function person(pid, nm) {
+      return '<span class="avatar sm" style="background:' + (pid ? colorFor(pid) : "#aaa") + '">' + esc(initials(nm)) + "</span>" + esc(nm);
+    }
+    $("detail").innerHTML =
+      '<div class="d-head"><h3>' + esc(t.title) + '</h3><button class="x" id="dClose" type="button">×</button></div>' +
+      '<div class="chips"><span class="tagpill">' + cols[t.status] + '</span><span class="tagpill ' + prio + '">' + esc(t.priority) + " priority</span></div>" +
+      '<div class="desc' + (t.description ? "" : " none") + '">' + (t.description ? esc(t.description) : "No details yet.") + "</div>" +
+      (imgs.length ? '<div class="gallery">' + imgs.map(function (a) { return '<img src="' + esc(state.urls[a]) + '" alt="" data-z="' + esc(state.urls[a]) + '" />'; }).join("") + "</div>" : "") +
+      '<div class="grid">' +
+      "<div><small>Assigned to</small><span>" + person(t.assignee, who) + "</span></div>" +
+      "<div><small>Due date</small><span>" + (t.due_date ? "📅 " + fmtDate(t.due_date) : "No due date") + "</span></div>" +
+      "<div><small>Created by</small><span>" + person(t.created_by, by) + "</span></div>" +
+      "<div><small>Created</small><span>" + (t.created_at ? new Date(t.created_at).toLocaleDateString() : "") + "</span></div>" +
+      "</div>" +
+      '<div class="modal-actions"><button type="button" class="btn-ghost" id="dDone">Close</button><button type="button" class="btn-primary" id="dEdit">Edit task</button></div>';
+    $("detailBg").classList.add("open");
+    $("dClose").onclick = $("dDone").onclick = closeDetail;
+    $("dEdit").onclick = function () { closeDetail(); openModal(t.id); };
+    $("detail").querySelectorAll("[data-z]").forEach(function (im) {
+      im.onclick = function () { $("lbImg").src = im.dataset.z; $("lightbox").classList.add("open"); };
+    });
+  }
+  function closeDetail() { $("detailBg").classList.remove("open"); }
+  $("detailBg").addEventListener("click", function (e) { if (e.target === $("detailBg")) closeDetail(); });
+
   function renderThumbs() {
     var h = state.keep.map(function (a, i) {
       return '<div class="thumb"><img src="' + esc(state.urls[a] || "") + '" alt="" /><button type="button" data-rk="' + i + '">×</button></div>';
@@ -231,7 +267,7 @@
   });
   $("lightbox").addEventListener("click", function () { $("lightbox").classList.remove("open"); });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { $("lightbox").classList.remove("open"); closeModal(); }
+    if (e.key === "Escape") { $("lightbox").classList.remove("open"); closeModal(); closeDetail(); }
   });
 
   function closeModal() { $("modalBg").classList.remove("open"); }
