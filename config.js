@@ -5,6 +5,7 @@ window.APP_CONFIG = {
   SUPABASE_ANON_KEY:
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3bWpkdnlqc3dvZ3ZkZnBoeW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMDY5MDEsImV4cCI6MjEwODg4MjkwMX0.xpB362bii9kdRzgaSx8n3IBSHaxNmUQoSUw7DWJHeTo",
   GAME_NAME: "Chicken Farm",
-  // Shown on the landing page until real Roblox stats are wired in.
+  ROBLOX_UNIVERSE_ID: "10769042979",
+  // Used only when Roblox's public stats endpoint is unavailable.
   FALLBACK_VISITS: 0,
 };
