@@ -6,7 +6,7 @@
     { key: "review", label: "Review" },
     { key: "done", label: "Done" },
   ];
-  var state = { me: null, profiles: [], tasks: [], editing: null, q: "", who: "", urls: {}, keep: [], pending: [] };
+  var state = { me: null, profiles: [], tasks: [], visits: 0, editing: null, q: "", who: "", urls: {}, keep: [], pending: [] };
   var $ = function (id) { return document.getElementById(id); };
 
   function toast(msg) {
@@ -42,6 +42,7 @@
     }
   }
   await load();
+  state.visits = await window.getGameVisits();
 
   function profile(id) { return state.profiles.find(function (x) { return x.id === id; }); }
   function displayName(name) {
@@ -88,7 +89,7 @@
     var pct = total ? Math.round((done / total) * 100) : 0;
     $("pct").textContent = pct + "%";
     $("kInProg").textContent = state.tasks.filter(function (t) { return t.status === "in_progress"; }).length;
-    $("kVisits").textContent = (window.APP_CONFIG.FALLBACK_VISITS || 0).toLocaleString();
+    $("kVisits").textContent = state.visits.toLocaleString();
 
     // gauge: tick marks, filled up to pct
     var ticks = "", n = 36;

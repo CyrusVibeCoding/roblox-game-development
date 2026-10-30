@@ -36,19 +36,21 @@
   </div>
 
   <script src="config.js"></script>
+  <script src="roblox-stats.js"></script>
   <script>
-    // Visits counter. Stays at 0 until the game is live and stats are wired in.
     (function () {
-      var target = (window.APP_CONFIG && window.APP_CONFIG.FALLBACK_VISITS) || 0;
       var el = document.getElementById("visits");
-      var start = null;
-      function tick(ts) {
-        if (start === null) start = ts;
-        var p = Math.min((ts - start) / 900, 1);
-        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
-        if (p < 1) requestAnimationFrame(tick);
+      function animate(target) {
+        var start = null;
+        function tick(ts) {
+          if (start === null) start = ts;
+          var p = Math.min((ts - start) / 900, 1);
+          el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
+          if (p < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
       }
-      requestAnimationFrame(tick);
+      window.getGameVisits().then(animate);
     })();
   </script>
 </body>
