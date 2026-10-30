@@ -44,31 +44,40 @@
   await load();
 
   function profile(id) { return state.profiles.find(function (x) { return x.id === id; }); }
-  function nameOf(id) { var p = profile(id); return p ? p.display_name : "Unassigned"; }
+  function displayName(name) {
+    var aliases = {
+      cyrusclaudecoding: "Cyrus",
+      "ario.sahra": "Ario",
+    };
+    var value = String(name || "");
+    return aliases[value.toLowerCase()] || value;
+  }
+  function nameOf(id) { var p = profile(id); return p ? displayName(p.display_name) : "Unassigned"; }
 
   // ---- Sidebar / filters ----
   function renderPeople() {
     var meP = profile(state.me.id);
-    var meName = (meP && meP.display_name) || state.me.email.split("@")[0];
+    var meName = displayName((meP && meP.display_name) || state.me.email.split("@")[0]);
     $("meName").textContent = meName;
     var av = $("meAvatar"); av.textContent = initials(meName); av.style.background = colorFor(state.me.id);
 
     $("members").innerHTML = state.profiles.map(function (p) {
       var working = state.tasks.filter(function (t) { return t.assignee === p.id && t.status === "in_progress"; });
       var sub = working.length ? "Working on: " + esc(working[0].title) : "Not working on anything";
+      var name = displayName(p.display_name);
       return '<div class="member"><div class="avatar" style="background:' + colorFor(p.id) + '">' +
-        esc(initials(p.display_name)) + '<span class="dot"></span></div><div>' +
-        esc(p.display_name) + "<small>" + sub + "</small></div></div>";
+        esc(initials(name)) + '<span class="dot"></span></div><div>' +
+        esc(name) + "<small>" + sub + "</small></div></div>";
     }).join("");
 
     var opts = '<option value="">Everyone</option>' + state.profiles.map(function (p) {
-      return '<option value="' + p.id + '">' + esc(p.display_name) + "</option>";
+      return '<option value="' + p.id + '">' + esc(displayName(p.display_name)) + "</option>";
     }).join("");
     var cur = $("filterAssignee").value;
     $("filterAssignee").innerHTML = opts; $("filterAssignee").value = cur;
 
     $("fAssignee").innerHTML = '<option value="">Unassigned</option>' + state.profiles.map(function (p) {
-      return '<option value="' + p.id + '">' + esc(p.display_name) + "</option>";
+      return '<option value="' + p.id + '">' + esc(displayName(p.display_name)) + "</option>";
     }).join("");
   }
 
