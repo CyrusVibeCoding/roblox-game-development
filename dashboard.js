@@ -128,6 +128,25 @@
     var dt = new Date(d + "T00:00:00");
     return dt.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
   }
+  function fmtDateTime(d) {
+    if (!d) return "";
+    return new Date(d).toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  function taskComments(t) {
+    if (!Array.isArray(t && t.comments)) return [];
+    return t.comments.filter(function (c) { return c && typeof c.text === "string"; });
+  }
+  function commentAuthor(comment) {
+    var id = comment && comment.author_id;
+    if (id && String(id) === String(state.me.id)) return displayName((profile(state.me.id) || {}).display_name || state.me.email.split("@")[0]);
+    return id ? nameOf(id) : "Unknown";
+  }
   function visible(t) {
     if (state.who && t.assignee !== state.who) return false;
     if (state.q) {
@@ -223,9 +242,14 @@
     var who = t.assignee ? nameOf(t.assignee) : "Unassigned";
     var by = t.created_by ? nameOf(t.created_by) : "Unknown";
     var imgs = (t.images || []).filter(function (a) { return state.urls[a]; });
+    var comments = taskComments(t);
     function person(pid, nm) {
       return '<span class="avatar sm" style="background:' + (pid ? colorFor(pid) : "#aaa") + '">' + esc(initials(nm)) + "</span>" + esc(nm);
     }
+    var commentsHtml = comments.length ? comments.map(function (c) {
+      return '<div class="comment-item"><div class="comment-meta"><strong>' + esc(commentAuthor(c)) + "</strong><span>" +
+        esc(fmtDateTime(c.created_at)) + '</span></div><p>' + esc(c.text) + "</p></div>";
+    }).join("") : '<div class="comment-empty">No comments yet.</div>';
     $("detail").innerHTML =
       '<div class="d-head"><h3>' + esc(t.title) + '</h3><button class="x" id="dClose" type="button">×</button></div>' +
       '<div class="chips"><span class="tagpill">' + cols[t.status] + '</span><span class="tagpill ' + prio + '">' + esc(t.priority) + " priority</span></div>" +
@@ -237,10 +261,31 @@
       "<div><small>Created by</small><span>" + person(t.created_by, by) + "</span></div>" +
       "<div><small>Created</small><span>" + (t.created_at ? new Date(t.created_at).toLocaleDateString() : "") + "</span></div>" +
       "</div>" +
+      '<section class="comments"><h4>Comments</h4><div class="comment-list">' + commentsHtml + '</div><form id="dCommentForm" class="comment-form">' +
+      '<textarea id="dCommentInput" rows="3" maxlength="800" placeholder="Add a comment..."></textarea>' +
+      '<button type="submit" class="btn-primary" id="dCommentBtn">Post comment</button></form></section>' +
       '<div class="modal-actions"><button type="button" class="btn-ghost" id="dDone">Close</button><button type="button" class="btn-primary" id="dEdit">Edit task</button></div>';
     $("detailBg").classList.add("open");
     $("dClose").onclick = $("dDone").onclick = closeDetail;
     $("dEdit").onclick = function () { closeDetail(); openModal(t.id); };
+    $("dCommentForm").onsubmit = async function (e) {
+      e.preventDefault();
+      var input = $("dCommentInput");
+      var btn = $("dCommentBtn");
+      var text = input.value.trim();
+      if (!text) return;
+      btn.disabled = true;
+      btn.textContent = "Posting...";
+      var next = comments.concat([{ text: text, author_id: state.me.id, created_at: new Date().toISOString() }]);
+      var r = await sb.from("tasks").update({ comments: next }).eq("id", t.id);
+      btn.disabled = false;
+      btn.textContent = "Post comment";
+      if (r.error) { toast(r.error.message); return; }
+      await load();
+      renderAll();
+      openDetail(t.id);
+      toast("Comment added");
+    };
     $("detail").querySelectorAll("[data-z]").forEach(function (im) {
       im.onclick = function () { $("lbImg").src = im.dataset.z; $("lightbox").classList.add("open"); };
     });
