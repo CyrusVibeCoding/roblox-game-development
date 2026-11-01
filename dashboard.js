@@ -346,7 +346,7 @@
       "</div>" +
       '<section class="comments"><h4>Comments</h4><div class="comment-list">' + commentsHtml + '</div><form id="dCommentForm" class="comment-form">' +
       '<textarea id="dCommentInput" rows="3" maxlength="800" placeholder="Add a comment..."></textarea>' +
-      '<label class="comment-attach"><span>Attach images</span><input id="dCommentFiles" type="file" accept="image/*" multiple /></label>' +
+      '<label class="comment-attach"><span>Attach images or paste a screenshot</span><input id="dCommentFiles" type="file" accept="image/*" multiple /></label>' +
       '<div class="thumbs comment-thumbs" id="dCommentThumbs"></div>' +
       '<button type="submit" class="btn-primary" id="dCommentBtn">Post comment</button></form></section>' +
       '<div class="modal-actions"><button type="button" class="btn-ghost" id="dDone">Close</button><button type="button" class="btn-primary" id="dEdit">Edit task</button></div>';
@@ -354,6 +354,11 @@
     $("dClose").onclick = $("dDone").onclick = closeDetail;
     $("dEdit").onclick = function () { closeDetail(); openModal(t.id); };
     $("dCommentFiles").addEventListener("change", function (e) { addCommentFiles(e.target.files); e.target.value = ""; });
+    $("dCommentInput").addEventListener("paste", function (e) {
+      if (!e.clipboardData) return;
+      addCommentFiles(e.clipboardData.files);
+      if (e.clipboardData.files && e.clipboardData.files.length) e.preventDefault();
+    });
     renderCommentThumbs();
     $("dCommentForm").onsubmit = async function (e) {
       e.preventDefault();
