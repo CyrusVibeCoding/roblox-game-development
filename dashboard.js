@@ -6,7 +6,8 @@
     { key: "review", label: "Review" },
     { key: "done", label: "Done" },
   ];
-  var state = { me: null, profiles: [], tasks: [], visits: 0, editing: null, q: "", who: "", urls: {}, keep: [], pending: [] };
+  var ARCHIVE_AGE_MS = 48 * 60 * 60 * 1000;
+  var state = { me: null, profiles: [], tasks: [], visits: 0, editing: null, q: "", who: "", view: "dashboard", urls: {}, keep: [], pending: [] };
   var $ = function (id) { return document.getElementById(id); };
 
   function toast(msg) {
@@ -84,11 +85,13 @@
 
   // ---- Stats ----
   function renderStats() {
-    var total = state.tasks.length;
-    var done = state.tasks.filter(function (t) { return t.status === "done"; }).length;
+    $("statsPanel").style.display = state.view === "archive" ? "none" : "";
+    var activeTasks = state.tasks.filter(function (t) { return !isArchivedTask(t); });
+    var total = activeTasks.length;
+    var done = activeTasks.filter(function (t) { return t.status === "done"; }).length;
     var pct = total ? Math.round((done / total) * 100) : 0;
     $("pct").textContent = pct + "%";
-    $("kInProg").textContent = state.tasks.filter(function (t) { return t.status === "in_progress"; }).length;
+    $("kInProg").textContent = activeTasks.filter(function (t) { return t.status === "in_progress"; }).length;
     $("kVisits").textContent = state.visits.toLocaleString();
 
     // gauge: tick marks, filled up to pct
@@ -108,7 +111,7 @@
     var monday = new Date(now); monday.setHours(0, 0, 0, 0);
     monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     var counts = [0, 0, 0, 0, 0];
-    state.tasks.forEach(function (t) {
+    activeTasks.forEach(function (t) {
       if (t.status !== "done" || !t.completed_at) return;
       var d = new Date(t.completed_at);
       var idx = Math.floor((d - monday) / 86400000);
@@ -148,6 +151,8 @@
     return id ? nameOf(id) : "Unknown";
   }
   function visible(t) {
+    if (state.view === "archive" && !isArchivedTask(t)) return false;
+    if (state.view !== "archive" && isArchivedTask(t)) return false;
     if (state.who && t.assignee !== state.who) return false;
     if (state.q) {
       var hay = (t.title + " " + (t.description || "")).toLowerCase();
@@ -155,7 +160,40 @@
     }
     return true;
   }
+  function isArchivedTask(t) {
+    if (!t || t.status !== "done") return false;
+    var raw = t.completed_at || t.created_at;
+    if (!raw) return false;
+    var doneAt = new Date(raw).getTime();
+    if (!isFinite(doneAt)) return false;
+    return Date.now() - doneAt >= ARCHIVE_AGE_MS;
+  }
+  function syncNav() {
+    $("navDashboard").classList.toggle("active", state.view === "dashboard");
+    $("navArchive").classList.toggle("active", state.view === "archive");
+  }
   function renderBoard() {
+    if (state.view === "archive") {
+      var archived = state.tasks.filter(function (t) { return visible(t); });
+      var cards = archived.map(function (t) {
+        var prio = t.priority === "high" ? "prio-high" : t.priority === "low" ? "prio-low" : "prio-med";
+        var who = t.assignee ? nameOf(t.assignee) : "Unassigned";
+        var imgs = (t.images || []).filter(function (a) { return state.urls[a]; });
+        var imgHtml = imgs.length ? '<div class="card-img" data-zoom="' + esc(state.urls[imgs[0]]) + '"><img src="' + esc(state.urls[imgs[0]]) + '" alt="" loading="lazy" draggable="false" />' +
+          (imgs.length > 1 ? '<span class="more">+' + (imgs.length - 1) + "</span>" : "") + "</div>" : "";
+        return '<div class="card done" draggable="true" data-id="' + t.id + '">' + imgHtml +
+          '<div class="top"><h5>' + esc(t.title) + '</h5><button class="menu" data-edit="' + t.id + '" title="Edit">⋮</button></div>' +
+          "<p>" + esc(t.description || "") + "</p>" +
+          '<div class="meta"><span class="tagpill">📅 ' + fmtDate(t.due_date) + '</span>' +
+          '<span class="tagpill ' + prio + '">' + esc(t.priority) + "</span>" +
+          '<span class="assignee"><span class="avatar sm" style="background:' + (t.assignee ? colorFor(t.assignee) : "#aaa") + '">' +
+          esc(initials(who)) + "</span>" + esc(who.split(" ")[0]) + "</span></div></div>";
+      }).join("") || '<div class="empty-note">No archived tasks yet</div>';
+      $("board").innerHTML = '<div><div class="col-head"><h3>Archive</h3><span class="count-pill">' + archived.length +
+        '</span></div><div class="col-body" data-col="done">' + cards + "</div></div>";
+      wireDnD();
+      return;
+    }
     $("board").innerHTML = COLS.map(function (c) {
       var items = state.tasks.filter(function (t) { return t.status === c.key && visible(t); });
       var cards = items.map(function (t) {
@@ -393,6 +431,19 @@
     .subscribe();
 
   function renderAll() { renderPeople(); renderStats(); renderBoard(); }
+  $("navDashboard").addEventListener("click", function (e) {
+    e.preventDefault();
+    state.view = "dashboard";
+    syncNav();
+    renderBoard();
+  });
+  $("navArchive").addEventListener("click", function (e) {
+    e.preventDefault();
+    state.view = "archive";
+    syncNav();
+    renderBoard();
+  });
+  syncNav();
   renderAll();
   $("app").style.visibility = "visible";
 })();
