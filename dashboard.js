@@ -308,11 +308,21 @@
     }).join("") : '<div class="comment-empty">No comments yet.</div>';
     state.commentPending = [];
     function renderCommentThumbs() {
-      $("dCommentThumbs").innerHTML = state.commentPending.map(function (f, i) {
-        return '<div class="thumb"><img src="' + URL.createObjectURL(f) + '" alt="" /><button type="button" data-rc="' + i + '">×</button></div>';
-      }).join("");
-      $("dCommentThumbs").querySelectorAll("[data-rc]").forEach(function (b) {
-        b.addEventListener("click", function () { state.commentPending.splice(+b.dataset.rc, 1); renderCommentThumbs(); });
+      var root = $("dCommentThumbs");
+      root.textContent = "";
+      state.commentPending.forEach(function (f, i) {
+        var wrap = document.createElement("div");
+        wrap.className = "comment-file";
+        var name = document.createElement("span");
+        name.textContent = f.name;
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.rc = String(i);
+        btn.textContent = "×";
+        btn.addEventListener("click", function () { state.commentPending.splice(+btn.dataset.rc, 1); renderCommentThumbs(); });
+        wrap.appendChild(name);
+        wrap.appendChild(btn);
+        root.appendChild(wrap);
       });
     }
     function addCommentFiles(list) {
