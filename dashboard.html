@@ -11,7 +11,8 @@
   <div class="app" id="app" style="visibility:hidden">
     <aside class="sidebar">
       <div class="brand"><span class="logo">🐔</span> Chicken Farm HQ</div>
-      <a class="side-link active" href="dashboard.html">▦ Dashboard</a>
+      <a class="side-link active" href="#" id="navDashboard">▦ Dashboard</a>
+      <a class="side-link" href="#" id="navArchive">🗄 Archive</a>
 
       <div class="side-section">Members</div>
       <div class="member-list" id="members"></div>
@@ -30,7 +31,7 @@
         <button class="btn-add" id="addBtn">＋ Add task</button>
       </div>
 
-      <section class="stats-panel">
+      <section class="stats-panel" id="statsPanel">
         <div>
           <h4>Tasks finished this week</h4>
           <div class="bars" id="bars"></div>
