@@ -7,7 +7,7 @@
     { key: "done", label: "Done" },
   ];
   var ARCHIVE_AGE_MS = 48 * 60 * 60 * 1000;
-  var state = { me: null, profiles: [], tasks: [], visits: 0, editing: null, q: "", who: "", view: "dashboard", urls: {}, keep: [], pending: [] };
+  var state = { me: null, profiles: [], tasks: [], visits: 0, editing: null, q: "", who: "", view: "dashboard", urls: {}, keep: [], pending: [], commentPending: [] };
   var $ = function (id) { return document.getElementById(id); };
 
   function toast(msg) {
@@ -36,7 +36,12 @@
     state.profiles = p.data || [];
     state.tasks = t.data || [];
     var paths = [];
-    state.tasks.forEach(function (x) { (x.images || []).forEach(function (a) { if (!state.urls[a]) paths.push(a); }); });
+    state.tasks.forEach(function (x) {
+      (x.images || []).forEach(function (a) { if (!state.urls[a]) paths.push(a); });
+      taskComments(x).forEach(function (c) {
+        commentImages(c).forEach(function (a) { if (!state.urls[a]) paths.push(a); });
+      });
+    });
     if (paths.length) {
       var su = await sb.storage.from("task-images").createSignedUrls(paths, 3600);
       (su.data || []).forEach(function (r) { if (r.signedUrl) state.urls[r.path] = r.signedUrl; });
@@ -143,7 +148,15 @@
   }
   function taskComments(t) {
     if (!Array.isArray(t && t.comments)) return [];
-    return t.comments.filter(function (c) { return c && typeof c.text === "string"; });
+    return t.comments.filter(function (c) {
+      if (!c) return false;
+      var text = typeof c.text === "string" ? c.text.trim() : "";
+      return text.length > 0 || commentImages(c).length > 0;
+    });
+  }
+  function commentImages(comment) {
+    if (!Array.isArray(comment && comment.images)) return [];
+    return comment.images.filter(function (x) { return typeof x === "string" && x; });
   }
   function commentAuthor(comment) {
     var id = comment && comment.author_id;
@@ -285,9 +298,31 @@
       return '<span class="avatar sm" style="background:' + (pid ? colorFor(pid) : "#aaa") + '">' + esc(initials(nm)) + "</span>" + esc(nm);
     }
     var commentsHtml = comments.length ? comments.map(function (c) {
+      var cImgs = commentImages(c).filter(function (a) { return state.urls[a]; });
       return '<div class="comment-item"><div class="comment-meta"><strong>' + esc(commentAuthor(c)) + "</strong><span>" +
-        esc(fmtDateTime(c.created_at)) + '</span></div><p>' + esc(c.text) + "</p></div>";
+        esc(fmtDateTime(c.created_at)) + '</span></div>' +
+        (c.text ? "<p>" + esc(c.text) + "</p>" : "") +
+        (cImgs.length ? '<div class="comment-gallery">' + cImgs.map(function (a) {
+          return '<img src="' + esc(state.urls[a]) + '" alt="" data-z="' + esc(state.urls[a]) + '" />';
+        }).join("") + "</div>" : "") + "</div>";
     }).join("") : '<div class="comment-empty">No comments yet.</div>';
+    state.commentPending = [];
+    function renderCommentThumbs() {
+      $("dCommentThumbs").innerHTML = state.commentPending.map(function (f, i) {
+        return '<div class="thumb"><img src="' + URL.createObjectURL(f) + '" alt="" /><button type="button" data-rc="' + i + '">×</button></div>';
+      }).join("");
+      $("dCommentThumbs").querySelectorAll("[data-rc]").forEach(function (b) {
+        b.addEventListener("click", function () { state.commentPending.splice(+b.dataset.rc, 1); renderCommentThumbs(); });
+      });
+    }
+    function addCommentFiles(list) {
+      Array.prototype.forEach.call(list, function (f) {
+        if (!/^image\//.test(f.type)) return;
+        if (f.size > 8 * 1024 * 1024) { toast(f.name + " is over 8 MB"); return; }
+        state.commentPending.push(f);
+      });
+      renderCommentThumbs();
+    }
     $("detail").innerHTML =
       '<div class="d-head"><h3>' + esc(t.title) + '</h3><button class="x" id="dClose" type="button">×</button></div>' +
       '<div class="chips"><span class="tagpill">' + cols[t.status] + '</span><span class="tagpill ' + prio + '">' + esc(t.priority) + " priority</span></div>" +
@@ -301,24 +336,46 @@
       "</div>" +
       '<section class="comments"><h4>Comments</h4><div class="comment-list">' + commentsHtml + '</div><form id="dCommentForm" class="comment-form">' +
       '<textarea id="dCommentInput" rows="3" maxlength="800" placeholder="Add a comment..."></textarea>' +
+      '<label class="comment-attach"><span>Attach images</span><input id="dCommentFiles" type="file" accept="image/*" multiple /></label>' +
+      '<div class="thumbs comment-thumbs" id="dCommentThumbs"></div>' +
       '<button type="submit" class="btn-primary" id="dCommentBtn">Post comment</button></form></section>' +
       '<div class="modal-actions"><button type="button" class="btn-ghost" id="dDone">Close</button><button type="button" class="btn-primary" id="dEdit">Edit task</button></div>';
     $("detailBg").classList.add("open");
     $("dClose").onclick = $("dDone").onclick = closeDetail;
     $("dEdit").onclick = function () { closeDetail(); openModal(t.id); };
+    $("dCommentFiles").addEventListener("change", function (e) { addCommentFiles(e.target.files); e.target.value = ""; });
+    renderCommentThumbs();
     $("dCommentForm").onsubmit = async function (e) {
       e.preventDefault();
       var input = $("dCommentInput");
       var btn = $("dCommentBtn");
       var text = input.value.trim();
-      if (!text) return;
+      if (!text && !state.commentPending.length) return;
       btn.disabled = true;
       btn.textContent = "Posting...";
-      var next = comments.concat([{ text: text, author_id: state.me.id, created_at: new Date().toISOString() }]);
+      var uploaded = [];
+      for (var i = 0; i < state.commentPending.length; i++) {
+        var f = state.commentPending[i];
+        var safe = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        var path = state.me.id + "/comments/" + Date.now() + "-" + i + "-" + safe;
+        var up = await sb.storage.from("task-images").upload(path, f, { contentType: f.type });
+        if (up.error) {
+          btn.disabled = false;
+          btn.textContent = "Post comment";
+          toast("Upload failed: " + up.error.message);
+          return;
+        }
+        uploaded.push(path);
+      }
+      var next = comments.concat([{ text: text, images: uploaded, author_id: state.me.id, created_at: new Date().toISOString() }]);
       var r = await sb.from("tasks").update({ comments: next }).eq("id", t.id);
       btn.disabled = false;
       btn.textContent = "Post comment";
-      if (r.error) { toast(r.error.message); return; }
+      if (r.error) {
+        if (uploaded.length) await sb.storage.from("task-images").remove(uploaded);
+        toast(r.error.message);
+        return;
+      }
       await load();
       renderAll();
       openDetail(t.id);
