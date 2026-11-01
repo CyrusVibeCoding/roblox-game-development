@@ -303,8 +303,16 @@ a { color: inherit; }
 .detail .comment-meta strong { font-size: 12px; }
 .detail .comment-meta span { font-size: 11px; color: var(--muted); }
 .detail .comment-item p { font-size: 13px; color: #3a3a36; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.detail .comment-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 8px; }
+.detail .comment-gallery img { width: 100%; height: 84px; object-fit: cover; border-radius: 10px; border: 1.5px solid var(--line); cursor: zoom-in; }
 .detail .comment-empty { border: 1.5px dashed var(--line); border-radius: 12px; padding: 12px; font-size: 13px; color: #aaa69b; }
 .detail .comment-form textarea { width: 100%; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card-soft); padding: 12px; resize: vertical; min-height: 74px; margin-bottom: 8px; }
 .detail .comment-form textarea:focus { border-color: var(--ink); background: #fff; outline: none; }
+.detail .comment-attach { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #5a574f; margin-bottom: 8px; }
+.detail .comment-attach input { font-size: 12px; }
+.detail .comment-thumbs { margin-bottom: 10px; }
+.detail .comment-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #fff; font-size: 12px; margin-bottom: 6px; }
+.detail .comment-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail .comment-file button { width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; font-size: 12px; line-height: 20px; }
 .detail .comment-form .btn-primary { width: auto; min-width: 132px; padding: 10px 14px; }
 .detail .modal-actions { margin-top: 4px; }
